@@ -23,15 +23,18 @@ FROM ubuntu:latest
 
 WORKDIR /workspace
 
+COPY --from=builder /app/bin/docscraper /usr/local/bin/
+
 RUN apt-get update && \
     apt-get install -y golang-go git ca-certificates figlet && \
     rm -rf /var/lib/apt/lists/*
 
 # Add crontab file in the cron directory
-ADD crontab /etc/cron.d/hello-cron
+COPY crontab /etc/cron.d/hello-cron
+COPY run.sh /run.sh
 
-# Give execution rights on the cron job
-RUN chmod 0644 /etc/cron.d/hello-cron
+RUN chmod 0644 /etc/cron.d/hello-cron \
+    && crontab /etc/cron.d/hello-cron
 
 # Create the log file to be able to run tail
 RUN touch /var/log/cron.log
@@ -40,8 +43,6 @@ RUN touch /var/log/cron.log
 RUN apt-get update
 RUN apt-get -y install cron
 
-COPY --from=builder /app/bin/docscraper /usr/local/bin/
-
+ENTRYPOINT ["/run.sh"]
 # Run the command on container startup
-CMD cron && tail -f /var/log/cron.log
-
+CMD ["crond", "-f", "-l", "2"]
