@@ -43,5 +43,5 @@ RUN apt-get -y install cron
 COPY --from=builder /app/bin/docscraper /usr/local/bin/
 
 # Run the command on container startup
-#CMD cron && tail -f /var/log/cron.log
-ENTRYPOINT ["./run.sh"]
+CMD cron && tail -f /var/log/cron.log
+
