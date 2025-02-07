@@ -24,7 +24,7 @@ FROM ubuntu:latest
 WORKDIR /workspace
 
 RUN apt-get update && \
-    apt-get install -y golang-go git ca-certificates && \
+    apt-get install -y golang-go git ca-certificates figlet && \
     rm -rf /var/lib/apt/lists/*
 
 # Add crontab file in the cron directory
@@ -43,4 +43,5 @@ RUN apt-get -y install cron
 COPY --from=builder /app/bin/docscraper /usr/local/bin/
 
 # Run the command on container startup
-CMD cron && tail -f /var/log/cron.log
+#CMD cron && tail -f /var/log/cron.log
+ENTRYPOINT ["./run.sh"]
