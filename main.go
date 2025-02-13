@@ -9,6 +9,7 @@ import (
 	"os"
 	"net/http"
 	"fmt"
+	"regexp"
 	"github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/credentials"
     "github.com/aws/aws-sdk-go/aws/session"
@@ -17,12 +18,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Link struct {
+	header string
+	url string
+}
+
+var links []Link
+
 func main() {
 
 	fmt.Println("Starting the scraper")
 	//Create a CSV file
 	fName := GetValue("FILE")
-	fmt.Println(fName)
+	//fmt.Println(fName)
 	file , err := os.Create(fName)
 	if err != nil {
 		log.Fatal("Cannot create file", err)
@@ -35,8 +43,14 @@ func main() {
 
     // List of URLs to scrape
     urls := []string{
-        "https://docs.digitalocean.com/products/app-platform/",
-		"https://docs.digitalocean.com/reference/doctl/reference/apps/",
+        // "https://docs.digitalocean.com/products/app-platform/",
+		// "https://docs.digitalocean.com/products/droplets/",
+		// "https://docs.digitalocean.com/products/kubernetes/",
+		// "https://docs.digitalocean.com/products/functions/",
+		// "https://docs.digitalocean.com/products/storage/",
+		// "https://docs.digitalocean.com/products/images/",
+		// "https://docs.digitalocean.com/reference/doctl/reference/apps/",
+		"https://docs.digitalocean.com/products/",
     }
 
 	c := colly.NewCollector(
@@ -46,32 +60,68 @@ func main() {
 	//On every a element which has href attribute call callback
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
-
-		if !strings.HasPrefix(link, "/products/app-platform") && !strings.HasPrefix(link, "/reference/doctl/reference/apps") {
-			return
-		}
+		fmt.Printf("LINK VISIT %s \n", link)
+		// if !strings.HasPrefix(link, "/products/app-platform") && !strings.HasPrefix(link, "/reference/doctl/reference/apps") {
+		// 	return
+		// }
+		// if !strings.HasPrefix(link, "/products/app-platform/how-to/view-logs") {
+		//     return
+		// }
 		// start scraping the page under the link found
 		//fmt.Println(link)
 		e.Request.Visit(link)
 	})
 
 	c.OnHTML(`div[id=header-subheader]`, func(e *colly.HTMLElement) {
-		log.Println("Doc found", e.Request.URL)
+	//	log.Println("Doc found", e.Request.URL)
 		resp, err := http.Get(fmt.Sprintf("%v",e.Request.URL))
 		if err != nil {
 			log.Fatal("Cannot get the page", err)
 		}
 
-		log.Printf("Response is %d", resp.StatusCode)
+	//	log.Printf("Response is %d", resp.StatusCode)
 
 		if resp.StatusCode == 200 {
 			title := strings.Split(e.ChildText("h1"), "\n")[0]
-			log.Println(title)
-			writer.Write([]string{title, e.Request.URL.String()})
+	//		log.Println(title)
+			link := &Link{
+				header: title,
+				url: e.Request.URL.String(),
+			}
+			links = append(links, *link)
 		}
 	})
+
+	//On every <a> element with collection-product-card class call callback
+	c.OnHTML(`div.dynamic-view-wrap > h3`, func(e *colly.HTMLElement) {
+		// Activate detailCollector if the link contains "coursera.org/learn"
+		resp, err := http.Get(fmt.Sprintf("%v",e.Request.URL))
+		if err != nil {
+			log.Fatal("Cannot get the page", err)
+		}
+		subtitles := e.Text
+		//fmt.Printf("ID: %s\nContent: %s\n", id, content)
+		url := fmt.Sprintf( "%s#%s",e.Request.URL, e.Attr("id"))
+		fmt.Println(url)
+		if resp.StatusCode == 200 {
+			link := &Link{
+				header: subtitles,
+				url: url,
+			}
+			links = append(links, *link)
+		}
+		// fmt.Println(e.Attr("div.dynamic-view-wrap > h3"))
+		// fmt.Println(e.ChildText("h3"))
+	})
+
 	for _, url := range urls{
     	c.Visit(url)
+	}
+	fmt.Printf("LINK struct: %#v\n", links)
+	for _, link := range links {
+		match, _ := regexp.MatchString(`(0[1-9]|[12][0-9])( )(January|February|March|April|May|June|July|August|September|October|November|December)( )(19|20)\d{2}`, "link.header")
+        fmt.Printf("MATCH::: %s \n", match)
+		writer.Write([]string{link.header, link.url})
 	}
 	//Upload file to s3
 	UploadToS3(GetValue("FILE"))
@@ -130,9 +180,9 @@ func UploadToS3(filename string) (string , error) {
 // GetValue returns configuration value based on a given key from the .env file
 func GetValue(key string) string {
 	fmt.Println(os.Getenv("GO_ENV"))
-	env := os.Getenv("GO_ENV")
+	//env := os.Getenv("GO_ENV")
     // load the .env file
-	fmt.Printf("The env value is %s \n", env)
+	//fmt.Printf("The env value is %s \n", env)
 
 	if os.Getenv("GO_ENV") != "PRODUCTION" {
 		err := godotenv.Load(".env")
