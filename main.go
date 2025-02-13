@@ -180,9 +180,9 @@ func UploadToS3(filename string) (string , error) {
 // GetValue returns configuration value based on a given key from the .env file
 func GetValue(key string) string {
 	fmt.Println(os.Getenv("GO_ENV"))
-	//env := os.Getenv("GO_ENV")
+	env := os.Getenv("GO_ENV")
     // load the .env file
-	//fmt.Printf("The env value is %s \n", env)
+	fmt.Printf("The env value is %s \n", env)
 
 	if os.Getenv("GO_ENV") != "PRODUCTION" {
 		err := godotenv.Load(".env")
