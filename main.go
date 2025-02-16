@@ -42,14 +42,7 @@ func main() {
 
     // List of URLs to scrape
     urls := []string{
-        "https://docs.digitalocean.com/products/app-platform/",
-		// "https://docs.digitalocean.com/products/droplets/",
-		// "https://docs.digitalocean.com/products/kubernetes/",
-		// "https://docs.digitalocean.com/products/functions/",
-		// "https://docs.digitalocean.com/products/storage/",
-		// "https://docs.digitalocean.com/products/images/",
-		 "https://docs.digitalocean.com/reference/doctl/reference/apps/",
-		//"https://docs.digitalocean.com/products/",
+		"https://docs.digitalocean.com/products/",
     }
 
 	c := colly.NewCollector(
@@ -60,11 +53,8 @@ func main() {
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// NEED THIS HEAR IF I NEED TO SCRAPE SPECIFIC PAGES
-		if !strings.HasPrefix(link, "/products/app-platform") && !strings.HasPrefix(link, "/reference/doctl/reference/apps") {
-			return
-		}
-		// if !strings.HasPrefix(link, "/products/app-platform/how-to/view-logs") {
-		//     return
+		// if !strings.HasPrefix(link, "/products/app-platform") && !strings.HasPrefix(link, "/reference/doctl/reference/apps") {
+		// 	return
 		// }
 		// start scraping the page under the link found
 	    fmt.Printf("LINK VISIT %s \n", link)
@@ -72,12 +62,9 @@ func main() {
 	})
 
 	c.OnHTML(`div[id=header-subheader]`, func(e *colly.HTMLElement) {
-		resp, err := http.Get(fmt.Sprintf("%v",e.Request.URL))
-		if err != nil {
-			log.Fatal("Cannot get the page", err)
-		}
+		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
 
-		if resp.StatusCode == 200 {
+		if status {
 			title := strings.Split(e.ChildText("h1"), "\n")[0]
 			link := &Link{
 				header: title,
@@ -88,14 +75,25 @@ func main() {
 	})
 
 	c.OnHTML(`div.dynamic-view-wrap > h3`, func(e *colly.HTMLElement) {
-		resp, err := http.Get(fmt.Sprintf("%v",e.Request.URL))
-		if err != nil {
-			log.Fatal("Cannot get the page", err)
-		}
+		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
 		subtitles := e.Text
 		url := fmt.Sprintf( "%s#%s",e.Request.URL, e.Attr("id"))
 		fmt.Println(url)
-		if resp.StatusCode == 200 {
+		if status {
+			link := &Link{
+				header: subtitles,
+				url: url,
+			}
+			links = append(links, *link)
+		}
+	})
+
+	c.OnHTML(`div.dynamic-view-wrap > h2`, func(e *colly.HTMLElement) {
+		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
+		subtitles := e.Text
+		url := fmt.Sprintf( "%s#%s",e.Request.URL, e.Attr("id"))
+		fmt.Println(url)
+		if status {
 			link := &Link{
 				header: subtitles,
 				url: url,
@@ -114,6 +112,17 @@ func main() {
 	//Upload file to s3
 	UploadToS3(GetValue("FILE"))
 	fmt.Println("End of Scrapper")
+}
+
+func verifyUrl(url string) bool {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal("Cannot get the page", err)
+	}
+	if resp.StatusCode == 200 {
+		return true
+	}
+	return false
 }
 
 
