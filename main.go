@@ -20,6 +20,9 @@ import (
 type Link struct {
 	header string
 	url string
+	subheader string
+	suburl string
+	description string
 }
 
 var links []Link
@@ -38,7 +41,7 @@ func main() {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 	
-	writer.Write([]string{"Instruction", "URL"})
+	writer.Write([]string{"Instruction", "URL", "SubInstruction", "SubURL", "Description"})
 
     // List of URLs to scrape
     urls := []string{
@@ -53,61 +56,62 @@ func main() {
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// NEED THIS HEAR IF I NEED TO SCRAPE SPECIFIC PAGES
-		if !strings.HasPrefix(link, "/products/app-platform") && !strings.HasPrefix(link, "/reference/doctl/reference/apps") {
+		if !strings.HasPrefix(link, "/products/app-platform/how-to/scale-app/") {
 			return
 		}
 		// start scraping the page under the link found
-	    fmt.Printf("LINK VISIT %s \n", link)
+	    //fmt.Printf("LINK VISIT %s \n", link)
 		e.Request.Visit(link)
 	})
 
-	c.OnHTML(`div[id=header-subheader]`, func(e *colly.HTMLElement) {
-		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
+	c.OnHTML(`div[id=body-inner]`, func(e *colly.HTMLElement) {
 
-		if status {
-			title := strings.Split(e.ChildText("h1"), "\n")[0]
+		//fmt.Println(e.ChildText("h1"))
+		mainTitle := e.ChildText("h1")
+		//fmt.Println(e.Request.URL)
+		mainUrl := fmt.Sprintf("%v",e.Request.URL)
+
+		e.ForEach("h2", func(_ int, el *colly.HTMLElement) {
+			//fmt.Println(el.Text)
+			url := fmt.Sprintf( "%s#%s",e.Request.URL, el.Attr("id"))
+			//fmt.Println(url)
+			//fmt.Println(el.ChildText("p"))
+			subheader := el.Text
+			suburl := url
 			link := &Link{
-				header: title,
-				url: e.Request.URL.String(),
+				header: mainTitle,
+				url: mainUrl,
+				subheader: subheader,
+				suburl: suburl,
+				description: e.ChildText("p"),
 			}
 			links = append(links, *link)
-		}
-	})
-
-	c.OnHTML(`div.dynamic-view-wrap > h3`, func(e *colly.HTMLElement) {
-		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
-		subtitles := e.Text
-		url := fmt.Sprintf( "%s#%s",e.Request.URL, e.Attr("id"))
-		fmt.Println(url)
-		if status {
+			//fmt.Printf("LINK struct: %#v\n", links)	
+		})
+		e.ForEach("h3", func(_ int, el *colly.HTMLElement) {
+			if el.Attr("id") == "" {
+				return
+			}
+			fmt.Println(el.Text)
+			fmt.Println(el.Attr("id"))
+			url := fmt.Sprintf( "%s#%s",e.Request.URL, el.Attr("id"))
 			link := &Link{
-				header: subtitles,
-				url: url,
+				header: mainTitle,
+				url: mainUrl,
+				subheader: el.Text,
+				suburl: url,
+				description: e.ChildText("p"),
 			}
 			links = append(links, *link)
-		}
-	})
-
-	c.OnHTML(`div.dynamic-view-wrap > h2`, func(e *colly.HTMLElement) {
-		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
-		subtitles := e.Text
-		url := fmt.Sprintf( "%s#%s",e.Request.URL, e.Attr("id"))
-		fmt.Println(url)
-		if status {
-			link := &Link{
-				header: subtitles,
-				url: url,
-			}
-			links = append(links, *link)
-		}
+		})
 	})
 
 	for _, url := range urls{
     	c.Visit(url)
 	}
-	fmt.Printf("LINK struct: %#v\n", links)
+	//fmt.Printf("LINK struct: %#v\n", links)
 	for _, link := range links {
-		writer.Write([]string{link.header, link.url})
+		writer.Write([]string{link.header, link.url, link.subheader, link.suburl, link.description})
 	}
 	//Upload file to s3
 	UploadToS3(GetValue("FILE"))
@@ -128,8 +132,8 @@ func verifyUrl(url string) bool {
 
 func UploadToS3(filename string) (string , error) {
 
-	var name string = strings.TrimSuffix(filename, ".csv") 
-
+	//var name string = strings.TrimSuffix(filename, ".csv") 
+	
     key := GetValue("SPACES_KEY")
     secret := GetValue("SPACES_SECRET")
 	endpoint := GetValue("SPACES_ENDPOINT")
@@ -161,7 +165,7 @@ func UploadToS3(filename string) (string , error) {
 	// Upload the file to S3.
 	result, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String("backend"),
-		Key:    aws.String(name),
+		Key:    aws.String(filename),
 		Body:   f,
 	})
 	if err != nil {	
@@ -176,10 +180,10 @@ func UploadToS3(filename string) (string , error) {
 
 // GetValue returns configuration value based on a given key from the .env file
 func GetValue(key string) string {
-	fmt.Println(os.Getenv("GO_ENV"))
-	env := os.Getenv("GO_ENV")
+	//fmt.Println(os.Getenv("GO_ENV"))
+	//env := os.Getenv("GO_ENV")
     // load the .env file
-	fmt.Printf("The env value is %s \n", env)
+	//fmt.Printf("The env value is %s \n", env)
 
 	if os.Getenv("GO_ENV") != "PRODUCTION" {
 		err := godotenv.Load(".env")
