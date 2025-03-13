@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/csv"
 	"github.com/gocolly/colly/v2"
-	"strings"
 	"log"
 	"os"
 	"net/http"
