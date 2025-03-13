@@ -45,7 +45,7 @@ func main() {
 
     // List of URLs to scrape
     urls := []string{
-		"https://docs.digitalocean.com/products/app-platform",
+		"https://docs.digitalocean.com/products/",
     }
 
 	c := colly.NewCollector(
@@ -56,9 +56,9 @@ func main() {
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// NEED THIS HEAR IF I NEED TO SCRAPE SPECIFIC PAGES
-		if !strings.HasPrefix(link, "/products/app-platform/how-to/scale-app/") {
-			return
-		}
+		// if !strings.HasPrefix(link, "/products/app-platform/how-to/scale-app/") {
+		// 	return
+		// }
 		// start scraping the page under the link found
 	    //fmt.Printf("LINK VISIT %s \n", link)
 		e.Request.Visit(link)
@@ -70,40 +70,42 @@ func main() {
 		mainTitle := e.ChildText("h1")
 		//fmt.Println(e.Request.URL)
 		mainUrl := fmt.Sprintf("%v",e.Request.URL)
-
-		e.ForEach("h2", func(_ int, el *colly.HTMLElement) {
-			//fmt.Println(el.Text)
-			url := fmt.Sprintf( "%s#%s",e.Request.URL, el.Attr("id"))
-			//fmt.Println(url)
-			//fmt.Println(el.ChildText("p"))
-			subheader := el.Text
-			suburl := url
-			link := &Link{
-				header: mainTitle,
-				url: mainUrl,
-				subheader: subheader,
-				suburl: suburl,
-				description: e.ChildText("p"),
-			}
-			links = append(links, *link)
-			//fmt.Printf("LINK struct: %#v\n", links)	
-		})
-		e.ForEach("h3", func(_ int, el *colly.HTMLElement) {
-			if el.Attr("id") == "" {
-				return
-			}
-			fmt.Println(el.Text)
-			fmt.Println(el.Attr("id"))
-			url := fmt.Sprintf( "%s#%s",e.Request.URL, el.Attr("id"))
-			link := &Link{
-				header: mainTitle,
-				url: mainUrl,
-				subheader: el.Text,
-				suburl: url,
-				description: e.ChildText("p"),
-			}
-			links = append(links, *link)
-		})
+		status := verifyUrl(fmt.Sprintf("%v",e.Request.URL))
+		if status {
+			e.ForEach("h2", func(_ int, el *colly.HTMLElement) {
+				//fmt.Println(el.Text)
+				url := fmt.Sprintf( "%s#%s",e.Request.URL, el.Attr("id"))
+				//fmt.Println(url)
+				//fmt.Println(el.ChildText("p"))
+				subheader := el.Text
+				suburl := url
+				link := &Link{
+					header: mainTitle,
+					url: mainUrl,
+					subheader: subheader,
+					suburl: suburl,
+					description: e.ChildText("p"),
+				}
+				links = append(links, *link)
+				//fmt.Printf("LINK struct: %#v\n", links)	
+			})
+			e.ForEach("h3", func(_ int, el *colly.HTMLElement) {
+				if el.Attr("id") == "" {
+					return
+				}
+				fmt.Println(el.Text)
+				fmt.Println(el.Attr("id"))
+				url := fmt.Sprintf( "%s#%s",e.Request.URL, el.Attr("id"))
+				link := &Link{
+					header: mainTitle,
+					url: mainUrl,
+					subheader: el.Text,
+					suburl: url,
+					description: e.ChildText("p"),
+				}
+				links = append(links, *link)
+			})
+		}
 	})
 
 	for _, url := range urls{
