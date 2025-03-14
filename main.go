@@ -14,7 +14,7 @@ import (
     //"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/joho/godotenv"
-	"strings"
+	//"strings"
 )
 
 type Link struct {
@@ -45,7 +45,7 @@ func main() {
 
     // List of URLs to scrape
     urls := []string{
-		"https://docs.digitalocean.com/products/app-platform/",
+		"https://docs.digitalocean.com/products/",
     }
 
 	c := colly.NewCollector(
@@ -56,9 +56,9 @@ func main() {
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// NEED THIS HEAR IF I NEED TO SCRAPE SPECIFIC PAGES
-		if !strings.HasPrefix(link, "/products/app-platform/how-to/scale-app/") {
-			return
-		}
+		// if !strings.HasPrefix(link, "/products/app-platform/how-to/scale-app/") {
+		// 	return
+		// }
 		// start scraping the page under the link found
 	    //fmt.Printf("LINK VISIT %s \n", link)
 		e.Request.Visit(link)
