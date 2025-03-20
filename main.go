@@ -7,14 +7,12 @@ import (
 	"os"
 	"net/http"
 	"fmt"
-	//"regexp"
 	"github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/credentials"
     "github.com/aws/aws-sdk-go/aws/session"
-    //"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/joho/godotenv"
-	//"strings"
+	"strings"
 )
 
 type Link struct {
@@ -45,7 +43,7 @@ func main() {
 
     // List of URLs to scrape
     urls := []string{
-		"https://docs.digitalocean.com/products/",
+		"https://docs.digitalocean.com/products/app-platform/",
     }
 
 	c := colly.NewCollector(
@@ -56,9 +54,9 @@ func main() {
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
 		link := e.Attr("href")
 		// NEED THIS HEAR IF I NEED TO SCRAPE SPECIFIC PAGES
-		// if !strings.HasPrefix(link, "/products/app-platform/how-to/scale-app/") {
-		// 	return
-		// }
+		if !strings.HasPrefix(link, "products/app-platform/reference/networking/") {
+			return
+		}
 		// start scraping the page under the link found
 	    //fmt.Printf("LINK VISIT %s \n", link)
 		e.Request.Visit(link)
@@ -150,7 +148,6 @@ func UploadToS3(filename string) (string , error) {
     }
 
     newSession := session.New(s3Config)
-    //s3Client := s3.New(newSession)
 
 	uploader := s3manager.NewUploader(newSession)
 
